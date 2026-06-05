@@ -21,6 +21,7 @@
   const displayVariantsChannelPrefix = "__display_variants:";
   const displayMetaChannelPrefix = "__display_meta:";
   const decodedPathname = decodeURIComponent(window.location.pathname);
+  const decodedPathnameLower = decodedPathname.toLowerCase();
   let servicesPromise = null;
   let supabasePromise = null;
   let commerceStore = null;
@@ -29,13 +30,14 @@
   let authSyncStarted = false;
 
   function isPage(name) {
-    return decodedPathname.endsWith("/" + name) || decodedPathname.endsWith(name);
+    const normalized = String(name || "").toLowerCase();
+    return decodedPathnameLower.endsWith("/" + normalized) || decodedPathnameLower.endsWith(normalized);
   }
 
   function isAnyPage(names) {
     return (Array.isArray(names) ? names : [names]).some(function (name) {
-      const normalized = String(name || "").replace(/\.html$/i, "");
-      return isPage(name) || isPage(normalized) || decodedPathname.includes("/" + normalized);
+      const normalized = String(name || "").replace(/\.html$/i, "").toLowerCase();
+      return isPage(name) || isPage(normalized) || decodedPathnameLower.includes("/" + normalized);
     });
   }
 
