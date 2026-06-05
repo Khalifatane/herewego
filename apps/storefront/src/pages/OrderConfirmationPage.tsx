@@ -1,8 +1,25 @@
 import { Link } from 'react-router'
 import orderConfirmationData from '@/data/order-confirmation.json'
+import { loadLatestOrder } from '@/lib/checkout.js'
 
 export default function OrderConfirmationPage() {
+  const latestOrder = loadLatestOrder()
   const { steps, backLink, continueShoppingLink, confirmation, whatsNext, needHelp, orderSummary } = orderConfirmationData
+  const orderNumber = latestOrder?.displayOrderNumber || confirmation.orderNumber
+  const email = latestOrder?.email || confirmation.email
+  const currency = latestOrder?.currency || orderSummary.currency
+  const shippingLabel = latestOrder ? (Number(latestOrder.shipping_amount || 0) > 0 ? '1 500 FCFA' : 'Free') : orderSummary.shipping
+  const subtotal = latestOrder?.subtotal ?? orderSummary.subtotal
+  const total = latestOrder?.total ?? orderSummary.total
+  const items = Array.isArray(latestOrder?.items) && latestOrder.items.length
+    ? latestOrder.items.map((item: any) => ({
+        name: item.title || item.name || 'Item',
+        color: item.color || 'Default',
+        size: item.size || 'One size',
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+      }))
+    : orderSummary.items
 
   return (
     <main className="min-h-screen max-w-7xl mx-auto px-4 py-8">
@@ -34,10 +51,10 @@ export default function OrderConfirmationPage() {
             </div>
             <h1 className="text-2xl font-semibold mb-1">{confirmation.heading}</h1>
             <p className="text-gray-600 mb-2">
-              {confirmation.orderNumberLabel} <span className="font-medium">{confirmation.orderNumber}</span>
+              {confirmation.orderNumberLabel} <span className="font-medium">{orderNumber}</span>
             </p>
             <p className="text-sm text-gray-500">
-              {confirmation.emailConfirmation} <span className="font-medium">{confirmation.email}</span>
+              {confirmation.emailConfirmation} <span className="font-medium">{email}</span>
             </p>
             <div className="flex justify-center gap-4 mt-6">
               {confirmation.actions.map((action, i) => (
@@ -97,22 +114,22 @@ export default function OrderConfirmationPage() {
               <span className="text-sm text-green-600 font-medium">{orderSummary.status}</span>
             </div>
             <div className="space-y-3 text-sm mb-6">
-              <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span>{orderSummary.subtotal} {orderSummary.currency}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Shipping</span><span className="text-green-600">{orderSummary.shipping}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span>{subtotal} {currency}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">Shipping</span><span className="text-green-600">{shippingLabel}</span></div>
               <div className="flex justify-between font-semibold text-base pt-3 border-t">
                 <span>Total</span>
-                <span>{orderSummary.total} {orderSummary.currency}</span>
+                <span>{total} {currency}</span>
               </div>
             </div>
             <div className="space-y-4">
-              {orderSummary.items.map((item: any, i: number) => (
+              {items.map((item: any, i: number) => (
                 <div key={i} className="flex gap-3">
                   <div className="w-16 h-20 bg-gray-100 rounded flex-shrink-0" />
                   <div className="text-sm">
                     <p className="font-medium">{item.name}</p>
                     <p className="text-gray-500">{item.color} / {item.size}</p>
                     <p className="text-gray-500">Qty: {item.quantity}</p>
-                    <p className="font-medium">{item.price} {orderSummary.currency}</p>
+                    <p className="font-medium">{item.price} {currency}</p>
                   </div>
                 </div>
               ))}

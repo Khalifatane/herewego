@@ -1,9 +1,39 @@
-import { Link } from 'react-router'
+import { FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 import checkoutData from '@/data/checkout.json'
 import OrderSummaryCard from '@/components/OrderSummaryCard'
+import { createCheckoutDraft, loadCheckoutDraft, saveCheckoutDraft } from '@/lib/checkout.js'
+import { useCart } from '@/hooks/useCart'
 
 export default function CheckoutPage() {
+  const navigate = useNavigate()
+  const draft = (loadCheckoutDraft() || {}) as Record<string, any>
+  const { items, subtotal, saleDiscount, promoDiscount, total } = useCart()
   const { steps, backLink, sections, orderSummary, loginLink, loginHint, checkoutType } = checkoutData
+  const shippingSection = sections.find((section) => section.type === 'shippingMethod') as any
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const shippingMethod = String(formData.get('shipping') || 'standard')
+    const shippingMethodLabel =
+      shippingSection?.options?.find((option: any) => option.id === shippingMethod)?.label || ''
+
+    const checkoutDraft = createCheckoutDraft(formData, {
+      items,
+      subtotal,
+      saleDiscount,
+      promoDiscount,
+      total,
+      currency: orderSummary.currency,
+      shippingAmount: shippingMethod === 'express' ? 1500 : 0,
+      shippingMethodLabel,
+      paymentMethod: String(draft.paymentMethod || 'Card'),
+    })
+
+    saveCheckoutDraft(checkoutDraft)
+    navigate('/review-and-pay')
+  }
 
   return (
     <main className="min-h-screen max-w-7xl mx-auto px-4 py-8">
@@ -31,7 +61,7 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <form className="grid grid-cols-1 lg:grid-cols-3 gap-12" onSubmit={handleSubmit}>
         {/* Form Sections */}
         <div className="lg:col-span-2 space-y-8">
           {sections.map((section, i) => (
@@ -45,6 +75,7 @@ export default function CheckoutPage() {
                       key={j}
                       type={field.type}
                       name={field.name}
+                      defaultValue={draft[field.name] || ''}
                       placeholder={field.placeholder}
                       required={field.required}
                       className="w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black"
@@ -63,10 +94,10 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {section.fields?.map((field: any, j: number) => (
                     field.type === 'select' ? (
-                      <select
+                    <select
                         key={j}
                         name={field.name}
-                        defaultValue={field.defaultValue}
+                        defaultValue={draft[field.name] || field.defaultValue}
                         className="w-full border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                       >
                         {field.options?.map((opt: string, k: number) => (
@@ -78,6 +109,7 @@ export default function CheckoutPage() {
                         key={j}
                         type={field.type}
                         name={field.name}
+                        defaultValue={draft[field.name] || ''}
                         placeholder={field.placeholder}
                         required={field.required}
                         className={`border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black ${field.name === 'address1' || field.name === 'address2' ? 'md:col-span-2' : ''}`}
@@ -98,7 +130,13 @@ export default function CheckoutPage() {
                   {section.options?.map((opt: any) => (
                     <label key={opt.id} className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer ${opt.selected ? 'border-black bg-gray-50' : ''}`}>
                       <div className="flex items-center gap-3">
-                        <input type="radio" name="shipping" defaultChecked={opt.selected} className="accent-black" />
+                        <input
+                          type="radio"
+                          name="shipping"
+                          value={opt.id}
+                          defaultChecked={draft.shippingMethod ? draft.shippingMethod === opt.id : opt.selected}
+                          className="accent-black"
+                        />
                         <span className="text-sm">{opt.label}</span>
                       </div>
                       <span className="text-sm font-medium">{opt.priceLabel}</span>
@@ -109,11 +147,9 @@ export default function CheckoutPage() {
             </div>
           ))}
 
-          <Link to="/review-and-pay">
-            <button className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition">
-              Continue to Review
-            </button>
-          </Link>
+          <button type="submit" className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition">
+            Continue to Review
+          </button>
         </div>
 
         {/* Order Summary */}
@@ -127,7 +163,7 @@ export default function CheckoutPage() {
             promoButtonText={orderSummary.promoCode.buttonText}
           />
         </div>
-      </div>
+      </form>
     </main>
   )
 }

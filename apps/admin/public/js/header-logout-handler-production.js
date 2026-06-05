@@ -12,6 +12,21 @@ let logoutSetupSucceeded = false;
 let logoutSetupRetries = 0;
 const LOGOUT_SETUP_MAX_RETRIES = 10;
 
+function getLogoutButton() {
+  return (
+    document.querySelector('.auth-logout-button') ||
+    document.getElementById('hs-pro-logout-btn')
+  );
+}
+
+function getAccountDropdown() {
+  return (
+    document.getElementById('hs-pro-account-dropdown') ||
+    document.querySelector('.hs-dropdown-menu[aria-labelledby="hs-pro-shadnli"]') ||
+    document.querySelector('.hs-dropdown-menu[aria-labelledby="hs-pro-account-dropdown"]')
+  );
+}
+
 /**
  * Setup logout button click handler with retry logic
  * Retries every 500ms if logout button not found initially
@@ -22,7 +37,7 @@ function setupLogoutHandler() {
     return;
   }
 
-  const logoutBtn = document.getElementById('hs-pro-logout-btn');
+  const logoutBtn = getLogoutButton();
   
   if (logoutBtn) {
     console.log('✅ Found logout button, attaching listener');
@@ -57,7 +72,7 @@ function setupLogoutHandler() {
 async function performLogout(e) {
   e.preventDefault();
   
-  const logoutBtn = document.getElementById('hs-pro-logout-btn');
+  const logoutBtn = getLogoutButton();
   
   console.log('🔄 Starting logout process...');
   
@@ -141,7 +156,7 @@ function completeLogout() {
   console.log('🎉 Completing logout...');
   
   // Hide account dropdown
-  const accountDropdown = document.getElementById('hs-pro-account-dropdown');
+  const accountDropdown = getAccountDropdown();
   if (accountDropdown) {
     accountDropdown.style.display = 'none';
     console.log('✅ Account dropdown hidden');
@@ -188,7 +203,7 @@ setTimeout(setupLogoutHandler, 1000);
 // Expose test utilities
 window.logoutTest = {
   triggerLogout: () => {
-    const btn = document.getElementById('hs-pro-logout-btn');
+    const btn = getLogoutButton();
     if (btn) {
       btn.click();
       console.log('✅ Logout triggered');
@@ -198,7 +213,7 @@ window.logoutTest = {
   },
   clearStorage: clearAllStorage,
   checkButton: () => {
-    const btn = document.getElementById('hs-pro-logout-btn');
+    const btn = getLogoutButton();
     console.log('🔍 Logout button:', btn ? 'FOUND' : 'NOT FOUND');
     return !!btn;
   }

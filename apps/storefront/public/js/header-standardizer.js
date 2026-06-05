@@ -32,6 +32,13 @@
     return decodedPathname.endsWith("/" + name) || decodedPathname.endsWith(name);
   }
 
+  function isAnyPage(names) {
+    return (Array.isArray(names) ? names : [names]).some(function (name) {
+      const normalized = String(name || "").replace(/\.html$/i, "");
+      return isPage(name) || isPage(normalized) || decodedPathname.includes("/" + normalized);
+    });
+  }
+
   function readJsonStorage(key, fallback) {
     try {
       const value = localStorage.getItem(key);
@@ -2222,12 +2229,15 @@
   }
 
   function bindCheckoutPage() {
-    if (!isPage("Checkout.html")) return;
+    if (!isAnyPage(["Checkout.html", "checkout", "paiement"])) return;
 
     hydrateCheckoutForm();
     renderCheckoutSummaryFromDraft(readJsonStorage(checkoutDraftKey, null) || collectCheckoutDraft());
     bindCheckoutSummarySync();
-    const continueLink = findActionLink("./review-pay.html", /continue|review/i);
+    const continueLink = findActionLink(
+      "./review-pay.html",
+      /continue|review|payment|paiement|verification|verifier|valider|suivant|next/i,
+    );
     if (!continueLink || continueLink.dataset.checkoutBound === "true") return;
 
     continueLink.dataset.checkoutBound = "true";
@@ -2256,25 +2266,25 @@
 
     document.querySelectorAll("p, span, h2").forEach(function (node) {
       const text = node.textContent || "";
-      if (/Your order/.test(text) && /number/.test(text)) {
+      if ((/Your order/.test(text) || /Votre commande/.test(text) || /Confirmation de commande/.test(text)) && (/number/.test(text) || /num[eé]ro/.test(text))) {
         const valueNode = node.querySelector("span");
         if (valueNode) valueNode.textContent = order.displayOrderNumber || order.id;
       }
-      if (/An order confirmation has been sent to/.test(text)) {
+      if (/An order confirmation has been sent to/.test(text) || /Une confirmation de commande a été envoyée à/.test(text) || /Une confirmation de commande a ete envoyee a/.test(text)) {
         const valueNode = node.querySelector("span");
         if (valueNode) valueNode.textContent = order.email || localStorage.getItem(authEmailKey) || "";
       }
     });
 
     const statusBadge = Array.from(document.querySelectorAll("span")).find(function (node) {
-      return /\bPaid\b/i.test(node.textContent || "") && node.querySelector("svg");
+      return (/\bPaid\b/i.test(node.textContent || "") || /\bPay[eé]\b/i.test(node.textContent || "") || /\bConfirm[eé]\b/i.test(node.textContent || "")) && node.querySelector("svg");
     });
     if (statusBadge) {
       statusBadge.childNodes[statusBadge.childNodes.length - 1].textContent = " " + getPaymentStatusLabel(order);
     }
 
     const orderSummaryHeading = Array.from(document.querySelectorAll("h2, h3, h4, h5")).find(function (node) {
-      return /Your order/i.test(node.textContent || "");
+      return /Your order/i.test(node.textContent || "") || /Votre commande/i.test(node.textContent || "") || /R[ée]capitulatif/i.test(node.textContent || "");
     });
     const orderSummaryRoot = orderSummaryHeading ? orderSummaryHeading.closest("div") : null;
     const listRoot = orderSummaryRoot ? orderSummaryRoot.querySelector(".space-y-5, .uilco, .space-y-7") : null;
@@ -2932,7 +2942,7 @@
   }
 
   function bindReviewAndPayPage() {
-    if (!isPage("Review and Pay.html") && !isPage("review-pay.html")) return;
+    if (!isAnyPage(["Review and Pay.html", "review-pay.html", "review-and-pay", "verification-et-paiement", "paiement"])) return;
 
     hydrateCheckoutForm();
     const draft = readJsonStorage(checkoutDraftKey, null) || collectCheckoutDraft();
@@ -2942,7 +2952,10 @@
     bindCheckoutSummarySync();
     bindReviewShippingMethodEditor();
 
-    const continueLink = findActionLink("./order-confirmation.html", /continue|place/i);
+    const continueLink = findActionLink(
+      "./order-confirmation.html",
+      /continue|place|confirm|pay|paiement|verification|verifier|valider|passer|submit/i,
+    );
     if (!continueLink || continueLink.dataset.reviewBound === "true") return;
 
     if (draft && draft.email) {
@@ -3076,7 +3089,7 @@
   }
 
   function renderOrderConfirmationPage() {
-    if (!isPage("order-confirmation.html")) return;
+    if (!isAnyPage(["order-confirmation.html", "order-confirmation", "confirmation-de-commande", "confirmation"])) return;
     const order = readJsonStorage(lookupOrderKey, null) || readJsonStorage(latestOrderKey, null);
     if (!order) return;
     renderConfirmationFromOrder(order);
