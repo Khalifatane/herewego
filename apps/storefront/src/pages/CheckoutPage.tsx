@@ -157,7 +157,6 @@ export default function CheckoutPage() {
           <OrderSummaryCard
             editCartLink={orderSummary.editCartLink}
             currency={orderSummary.currency}
-            shippingLabel={orderSummary.shipping}
             estimatedTaxLabel={orderSummary.estimatedTax}
             promoPlaceholder={orderSummary.promoCode.placeholder}
             promoButtonText={orderSummary.promoCode.buttonText}

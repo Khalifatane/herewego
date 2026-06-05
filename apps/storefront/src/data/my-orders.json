@@ -26,7 +26,7 @@
         "status": "Processing",
         "statusColor": "blue",
         "date": "April 28, 2026",
-        "total": 229,
+        "total": 0,
         "timeline": [
           { "label": "Order placed", "completed": true, "current": false },
           { "label": "Processing", "completed": true, "current": true },
@@ -34,12 +34,8 @@
           { "label": "Delivered", "completed": false, "current": false }
         ],
         "estimatedDelivery": "May 5, 2026",
-        "shippingAddress": "123 Main Street, London, UK",
-        "items": [
-          { "id": "1", "name": "Nike Air Force 1", "color": "White", "size": "M" },
-          { "id": "2", "name": "Camo Blend Jacket", "color": "Camo", "size": "M" },
-          { "id": "3", "name": "Mahabis Classic", "color": "White", "size": "M" }
-        ],
+        "shippingAddress": "",
+        "items": [],
         "actions": {
           "viewDetailsLink": "/order-details",
           "writeReviewLink": null
@@ -51,7 +47,7 @@
         "status": "Delivered",
         "statusColor": "green",
         "date": "March 15, 2026",
-        "total": 95,
+        "total": 0,
         "timeline": [
           { "label": "Order placed", "completed": true, "current": false },
           { "label": "Processing", "completed": true, "current": false },
@@ -59,10 +55,8 @@
           { "label": "Delivered", "completed": true, "current": true }
         ],
         "deliveredDate": "March 18, 2026",
-        "shippingAddress": "123 Main Street, London, UK",
-        "items": [
-          { "id": "4", "name": "Denim Jacket", "color": "Blue", "size": "L" }
-        ],
+        "shippingAddress": "",
+        "items": [],
         "actions": {
           "viewDetailsLink": "/order-details",
           "writeReviewLink": "#"
@@ -74,7 +68,7 @@
         "status": "Delivered",
         "statusColor": "green",
         "date": "January 10, 2026",
-        "total": 139,
+        "total": 0,
         "timeline": [
           { "label": "Order placed", "completed": true, "current": false },
           { "label": "Processing", "completed": true, "current": false },
@@ -82,10 +76,8 @@
           { "label": "Delivered", "completed": true, "current": true }
         ],
         "deliveredDate": "January 14, 2026",
-        "shippingAddress": "123 Main Street, London, UK",
-        "items": [
-          { "id": "5", "name": "Running Sneakers", "color": "Black", "size": "42" }
-        ],
+        "shippingAddress": "",
+        "items": [],
         "actions": {
           "viewDetailsLink": "/order-details",
           "writeReviewLink": "#"

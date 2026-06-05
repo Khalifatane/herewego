@@ -16,7 +16,7 @@ interface OrderSummaryCardProps {
 export default function OrderSummaryCard({
   editCartLink,
   currency = 'XOF',
-  shippingLabel = 'Free',
+  shippingLabel = 'Calculated at checkout',
   estimatedTaxLabel = 'Calculated at checkout',
   promoPlaceholder = 'Enter promo code',
   promoButtonText = 'Apply',
@@ -115,7 +115,7 @@ export default function OrderSummaryCard({
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Shipping</span>
-          <span className={shippingLabel === 'Free' ? 'text-green-600' : ''}>{shippingLabel}</span>
+          <span className={/free/i.test(shippingLabel) ? 'text-green-600' : ''}>{shippingLabel}</span>
         </div>
         {promoDiscount > 0 ? (
           <div className="flex justify-between text-red-600">

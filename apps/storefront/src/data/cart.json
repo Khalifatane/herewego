@@ -16,11 +16,11 @@
       "placeholder": "Enter promo code",
       "buttonText": "Apply"
     },
-    "subtotal": 229,
-    "shipping": "Free",
+    "subtotal": 0,
+    "shipping": "Calculated at checkout",
     "estimatedTax": "Calculated at checkout",
     "saleDiscount": null,
-    "total": 229,
+    "total": 0,
     "currency": "XOF"
   },
   "actions": {

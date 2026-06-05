@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router'
 import reviewAndPayData from '@/data/review-and-pay.json'
 import OrderSummaryCard from '@/components/OrderSummaryCard'
 import { buildReviewSnapshot, loadCheckoutDraft, saveReviewOrder } from '@/lib/checkout.js'
+import { useCart } from '@/hooks/useCart'
 
 export default function ReviewAndPayPage() {
   const navigate = useNavigate()
   const draft = (loadCheckoutDraft() || {}) as Record<string, any>
   const { steps, backLink, sections, orderSummary, payButton } = reviewAndPayData
+  const { formattedTotal } = useCart()
   const shippingAddressSection = sections.find((section) => section.type === 'shippingAddress') as any
   const shippingMethodSection = sections.find((section) => section.type === 'shippingMethod') as any
   const contactSection = sections.find((section) => section.type === 'contactDetails') as any
@@ -33,10 +35,11 @@ export default function ReviewAndPayPage() {
   }
 
   const shippingMethodLabel = draft.shippingMethodLabel || shippingMethodSection?.method?.label || ''
-  const shippingMethodPrice = Number(draft.shippingAmount || 0) > 0 ? '1 500 FCFA' : shippingMethodSection?.method?.price || 'Free'
+  const shippingMethodPrice = Number(draft.shippingAmount || 0) > 0 ? '1 500 FCFA' : shippingMethodSection?.method?.price || 'Calculated at checkout'
   const email = draft.email || contactSection?.email || ''
   const savedMethods = paymentSection?.savedMethods || []
   const otherMethods = paymentSection?.otherMethods || []
+  const payButtonLabel = `Pay ${formattedTotal}`
 
   return (
     <main className="min-h-screen max-w-7xl mx-auto px-4 py-8">
@@ -127,7 +130,7 @@ export default function ReviewAndPayPage() {
           ))}
 
           <button type="submit" className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition">
-            {payButton}
+            {payButtonLabel || payButton}
           </button>
         </div>
 
@@ -136,7 +139,6 @@ export default function ReviewAndPayPage() {
           <OrderSummaryCard
             editCartLink={orderSummary.editCartLink}
             currency={orderSummary.currency}
-            shippingLabel={orderSummary.shipping}
             estimatedTaxLabel={orderSummary.estimatedTax}
             promoPlaceholder={orderSummary.promoCode.placeholder}
             promoButtonText={orderSummary.promoCode.buttonText}

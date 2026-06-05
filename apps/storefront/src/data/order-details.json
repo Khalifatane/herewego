@@ -15,7 +15,7 @@
     "date": "April 28, 2026",
     "status": "Processing",
     "statusColor": "blue",
-    "total": 229,
+    "total": 0,
     "currency": "XOF",
     "shippingAddress": {
       "name": "",
@@ -33,11 +33,11 @@
       "last4": "4242"
     },
     "costs": {
-      "subtotal": 229,
-      "shipping": "Free",
+      "subtotal": 0,
+      "shipping": "Calculated at checkout",
       "estimatedTax": "Calculated",
       "saleDiscount": null,
-      "total": 229
+      "total": 0
     },
     "estimatedDelivery": "May 5, 2026",
     "timeline": [
@@ -49,35 +49,11 @@
     "items": [
       {
         "id": "1",
-        "name": "Nike Air Force 1",
-        "color": "White",
-        "size": "M",
-        "quantity": 1,
-        "price": 149,
-        "actions": {
-          "buyAgainButton": true,
-          "writeReviewLink": null
-        }
-      },
-      {
-        "id": "2",
-        "name": "Camo Blend Jacket",
-        "color": "Camo",
-        "size": "M",
-        "quantity": 1,
-        "price": 40,
-        "actions": {
-          "buyAgainButton": true,
-          "writeReviewLink": null
-        }
-      },
-      {
-        "id": "3",
-        "name": "Mahabis Classic",
-        "color": "White",
-        "size": "M",
-        "quantity": 1,
-        "price": 40,
+        "name": "Item",
+        "color": "",
+        "size": "",
+        "quantity": 0,
+        "price": 0,
         "actions": {
           "buyAgainButton": true,
           "writeReviewLink": null
