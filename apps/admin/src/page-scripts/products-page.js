@@ -11,6 +11,11 @@ import {
   subscribeToSanityProducts,
 } from "@siggistore/services/admin/sanity-service.js";
 import { subscribeToProductRuntime } from "@siggistore/services/admin/realtime.js";
+import {
+  loadStoredProductDrafts,
+  mergeProductsWithStoredDrafts,
+  upsertStoredProductDraft,
+} from "../lib/product-drafts.js";
 
 const PAGE_SIZE = 10;
 const TAB_KEYS = ["all"];
@@ -368,16 +373,21 @@ async function initProductsPage() {
         limit: 100,
         query,
       });
-      setLiveStatus(
-        products.length
-          ? `Produits Sanity charges: ${products.length}`
-          : "Sanity est connecte, mais aucun produit ne correspond a cette vue.",
-        products.length ? "success" : "warning",
-      );
+      const storedDrafts = loadStoredProductDrafts();
+      const statusMessage = products.length
+        ? storedDrafts.length
+          ? `Produits Sanity charges: ${products.length} + ${storedDrafts.length} brouillon(s) local(aux).`
+          : `Produits Sanity charges: ${products.length}`
+        : storedDrafts.length
+          ? `Brouillons locaux charges: ${storedDrafts.length}`
+          : "Sanity est connecte, mais aucun produit ne correspond a cette vue.";
+      setLiveStatus(statusMessage, products.length || storedDrafts.length ? "success" : "warning");
+
+      const productSources = mergeProductsWithStoredDrafts(products, storedDrafts);
 
       const runtimeIds = [
         ...new Set(
-          products.flatMap((product) => buildRuntimeLookupKey(product)),
+          productSources.flatMap((product) => buildRuntimeLookupKey(product)),
         ),
       ];
       let runtimeRows = [];
@@ -407,7 +417,7 @@ async function initProductsPage() {
           });
       });
 
-      const mergedProducts = products.map((product) => {
+      const mergedProducts = productSources.map((product) => {
         const runtime = buildRuntimeLookupKey(product)
           .map((key) => runtimeMap.get(String(key)))
           .find(Boolean);
@@ -537,6 +547,7 @@ async function initProductsPage() {
         table: PRODUCT_RUNTIME_TABLE,
       });
       Object.assign(product, mergeProductWithRuntime(product, runtime));
+      upsertStoredProductDraft(product);
       setLiveStatus("Disponibilite du produit enregistree.", "success");
       await render();
     } catch (error) {

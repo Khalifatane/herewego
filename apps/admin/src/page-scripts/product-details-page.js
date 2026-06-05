@@ -5,6 +5,11 @@ import {
   updateProductRuntimeDisplay,
 } from "@siggistore/services/admin";
 import { fetchSanityProducts } from "@siggistore/services/admin/sanity-service.js";
+import {
+  loadStoredProductDrafts,
+  mergeProductsWithStoredDrafts,
+  upsertStoredProductDraft,
+} from "../lib/product-drafts.js";
 
 function buildRuntimeLookupKey(product) {
   return [product.id, product.slug, product.sku]
@@ -197,6 +202,11 @@ function bindDisplayEditSave(product) {
         table: PRODUCT_RUNTIME_TABLE,
       });
       Object.assign(product, mergeProductWithRuntime(product, runtime));
+      upsertStoredProductDraft({
+        ...product,
+        runtimeId: runtime?.id || product?.runtime?.id || null,
+        updatedAt: runtime?.updated_at || new Date().toISOString(),
+      });
       saveLink.textContent = "Enregistre";
     } catch (error) {
       console.error("Failed to save product display controls", error);
@@ -254,7 +264,8 @@ async function initProductDetailsPage() {
 
   try {
     const products = await fetchSanityProducts({ limit: 100 });
-    const runtimeIds = [...new Set(products.flatMap((product) => buildRuntimeLookupKey(product)))];
+    const combinedProducts = mergeProductsWithStoredDrafts(products, loadStoredProductDrafts());
+    const runtimeIds = [...new Set(combinedProducts.flatMap((product) => buildRuntimeLookupKey(product)))];
 
     let runtimeRows = [];
     try {
@@ -274,7 +285,7 @@ async function initProductDetailsPage() {
         });
     });
 
-    const mergedProducts = products.map((product) => {
+    const mergedProducts = combinedProducts.map((product) => {
       const runtime = buildRuntimeLookupKey(product)
         .map((key) => runtimeMap.get(String(key)))
         .find(Boolean);
