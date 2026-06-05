@@ -11,6 +11,7 @@ import {
 import { fetchSanityProducts } from "@siggistore/services/admin/sanity-service.js";
 
 const DASHBOARD_PERIOD_DAYS = 30;
+const SELECTED_PRODUCT_STORAGE_KEY = "admin:selected-product-snapshot";
 const POSITIVE_TREND_CLASS = "m5geq";
 const NEGATIVE_TREND_CLASS = "pnjtm";
 const NEUTRAL_TREND_CLASS = "nck10";
@@ -52,6 +53,14 @@ function formatDecimal(value, maximumFractionDigits = 1) {
 
 function buildRuntimeLookupKey(product) {
   return [product?.id, product?.slug, product?.sku].filter(Boolean).map(String);
+}
+
+function safeWriteSelectedProductSnapshot(product) {
+  try {
+    localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
+  } catch (error) {
+    console.warn("Unable to persist selected product snapshot", error);
+  }
 }
 
 function normalizeLookupValue(value) {
@@ -356,6 +365,9 @@ function hydrateDashboardRow(row, product) {
 
   if (itemLink) {
     itemLink.setAttribute("href", detailsHref);
+    itemLink.addEventListener("click", () => {
+      safeWriteSelectedProductSnapshot(product);
+    });
   }
 
   if (itemName) {

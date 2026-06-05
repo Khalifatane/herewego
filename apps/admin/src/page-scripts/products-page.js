@@ -13,6 +13,7 @@ import {
 import { subscribeToProductRuntime } from "@siggistore/services/admin/realtime.js";
 
 const PAGE_SIZE = 10;
+const SELECTED_PRODUCT_STORAGE_KEY = "admin:selected-product-snapshot";
 const TAB_KEYS = ["all"];
 const tableState = createTableUrlState({
   defaultPage: 1,
@@ -54,6 +55,14 @@ function buildRuntimeLookupKey(product) {
   return [product.id, product.slug, product.sku]
     .filter(Boolean)
     .map(String);
+}
+
+function safeWriteSelectedProductSnapshot(product) {
+  try {
+    localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
+  } catch (error) {
+    console.warn("Unable to persist selected product snapshot", error);
+  }
 }
 
 function buildStockBadgeMarkup(stockState) {
@@ -115,6 +124,9 @@ function hydrateProductRow(row, product) {
   if (nameLink) {
     nameLink.textContent = product.name;
     nameLink.setAttribute("href", detailsHref);
+    nameLink.addEventListener("click", () => {
+      safeWriteSelectedProductSnapshot(product);
+    });
   }
 
   if (categoryCell) {
@@ -149,6 +161,9 @@ function hydrateProductRow(row, product) {
 
   actionLinks.forEach((link) => {
     link.setAttribute("href", detailsHref);
+    link.addEventListener("click", () => {
+      safeWriteSelectedProductSnapshot(product);
+    });
   });
 
   if (dropdownButton) {

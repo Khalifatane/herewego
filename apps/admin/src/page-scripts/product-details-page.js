@@ -6,6 +6,21 @@ import {
 } from "@siggistore/services/admin";
 import { fetchSanityProducts } from "@siggistore/services/admin/sanity-service.js";
 
+const SELECTED_PRODUCT_STORAGE_KEY = "admin:selected-product-snapshot";
+
+function safeReadSelectedProductSnapshot() {
+  try {
+    const raw = localStorage.getItem(SELECTED_PRODUCT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (error) {
+    console.warn("Unable to read selected product snapshot", error);
+    return null;
+  }
+}
+
 function buildRuntimeLookupKey(product) {
   return [product.id, product.slug, product.sku]
     .filter(Boolean)
@@ -282,8 +297,14 @@ async function initProductDetailsPage() {
     });
 
     const matchedIndex = findProductIndex(mergedProducts, productKey);
+    const snapshotProduct = safeReadSelectedProductSnapshot();
+    const currentProduct =
+      matchedIndex >= 0
+        ? mergedProducts[matchedIndex]
+        : snapshotProduct
+          ? snapshotProduct
+          : mergedProducts[0];
     const currentIndex = matchedIndex >= 0 ? matchedIndex : 0;
-    const currentProduct = mergedProducts[currentIndex];
 
     if (!currentProduct) return;
 
