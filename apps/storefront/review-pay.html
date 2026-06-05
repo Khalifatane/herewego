@@ -1020,4 +1020,179 @@
                 <script>
                     window.defaultVariables = {"baseUrl":"https:\/\/preline.co"};
                 </script> <script src="/js/app.js"></script><script src="/js/header-standardizer.js?v=4"></script></body>
+<script>
+  (function () {
+    const DRAFT_KEY = 'appCheckoutDraft';
+    const LAST_CHECKOUT_KEY = 'appLastCheckoutDetails';
+    const REVIEW_SNAPSHOT_KEY = 'appReviewOrderSnapshot';
+    const LATEST_ORDER_KEY = 'appLatestOrder';
+    const ORDERS_KEY = 'appOrders';
+
+    function readJson(key, fallback) {
+      try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    function writeJson(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function formatPrice(value) {
+      const amount = Math.round(Number(value || 0));
+      return amount.toLocaleString('fr-FR') + ' FCFA';
+    }
+
+    function getShippingSummary(methodId) {
+      if (methodId === 'hs-pro-esdo2') return 'Relay point, 1500 XOF';
+      if (methodId === 'hs-pro-esdo3') return 'Customized, Negotiated';
+      return 'Pickup, Free';
+    }
+
+    function getShippingAmount(methodId) {
+      if (methodId === 'hs-pro-esdo2') return 1500;
+      if (methodId === 'hs-pro-esdo3') return 0;
+      return 0;
+    }
+
+    function getCheckoutDraft() {
+      return readJson(DRAFT_KEY, null) || readJson(LAST_CHECKOUT_KEY, null) || {};
+    }
+
+    function getCurrentPaymentMethod() {
+      const selected = document.querySelector('input[name="hs-pro-shpfpm"]:checked');
+      return selected ? selected.value : 'Card';
+    }
+
+    function renderDraft(draft) {
+      const emailNode = document.querySelector('[data-review-email]');
+      const fullNameNode = document.querySelector('[data-review-full-name]');
+      const addressLineNode = document.querySelector('[data-review-address-line]');
+      const shippingMethodNode = document.querySelector('[data-review-shipping-method]');
+      const subtotalNode = document.querySelector('[data-order-summary-value="subtotal"]');
+      const shippingNode = document.querySelector('[data-order-summary-value="shipping"]');
+      const promoNode = document.querySelector('[data-order-summary-value="promo-discount"]');
+      const totalNode = document.querySelector('[data-order-summary-value="total"]');
+
+      const items = Array.isArray(draft.items) ? draft.items : readJson('appCartItems', []);
+      const subtotal = Number(draft.subtotal || items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0));
+      const shippingAmount = Number(draft.shippingAmount || getShippingAmount(draft.shippingMethod));
+      const promoDiscount = Number(draft.promoDiscount || 0);
+      const total = Math.max(0, subtotal + shippingAmount - promoDiscount);
+
+      if (emailNode) emailNode.textContent = draft.email || 'No email provided';
+      if (fullNameNode) fullNameNode.textContent = draft.fullName || '';
+      if (addressLineNode) addressLineNode.textContent = [draft.address1, draft.address2].filter(Boolean).join(', ') || draft.city || '';
+      if (shippingMethodNode) shippingMethodNode.textContent = draft.shippingMethodLabel || getShippingSummary(draft.shippingMethod);
+      if (subtotalNode) subtotalNode.textContent = formatPrice(subtotal);
+      if (shippingNode) shippingNode.textContent = shippingAmount > 0 ? formatPrice(shippingAmount) : '0 FCFA';
+      if (promoNode) promoNode.textContent = promoDiscount > 0 ? '-' + formatPrice(promoDiscount) : '0 FCFA';
+      if (totalNode) totalNode.textContent = formatPrice(total);
+
+      const paymentCard = document.querySelector('input[name="hs-pro-shpfpm"]');
+      if (paymentCard && draft.paymentMethod) {
+        Array.from(document.querySelectorAll('input[name="hs-pro-shpfpm"]')).forEach((input) => {
+          input.checked = input.value === draft.paymentMethod;
+        });
+      }
+    }
+
+    function buildReviewSnapshot(draft) {
+      const items = Array.isArray(draft.items) ? draft.items : readJson('appCartItems', []);
+      const subtotal = Number(draft.subtotal || items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0));
+      const shippingAmount = Number(draft.shippingAmount || getShippingAmount(draft.shippingMethod));
+      const promoDiscount = Number(draft.promoDiscount || 0);
+      const total = Math.max(0, subtotal + shippingAmount - promoDiscount);
+
+      return {
+        email: draft.email || '',
+        fullName: draft.fullName || '',
+        address1: draft.address1 || '',
+        address2: draft.address2 || '',
+        city: draft.city || '',
+        zipCode: draft.zipCode || '',
+        phone: draft.phone || '',
+        shippingMethod: draft.shippingMethod || 'hs-pro-esdo1',
+        shippingMethodLabel: draft.shippingMethodLabel || getShippingSummary(draft.shippingMethod),
+        paymentMethod: getCurrentPaymentMethod(),
+        promoCode: draft.promoCode || '',
+        currency: draft.currency || 'XOF',
+        items: items,
+        subtotal: subtotal,
+        shippingAmount: shippingAmount,
+        promoDiscount: promoDiscount,
+        total: total,
+        confirmedAt: new Date().toISOString(),
+      };
+    }
+
+    function buildOrder(reviewSnapshot) {
+      const orderNumber = 'ORD-' + Date.now().toString().slice(-8);
+      return {
+        id: 'local-order-' + Date.now(),
+        displayOrderNumber: orderNumber,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        status: 'confirmed',
+        payment_method: reviewSnapshot.paymentMethod,
+        subtotal: reviewSnapshot.subtotal,
+        shipping_amount: reviewSnapshot.shippingAmount,
+        promo_discount: reviewSnapshot.promoDiscount,
+        total: reviewSnapshot.total,
+        total_amount: reviewSnapshot.total,
+        currency: reviewSnapshot.currency,
+        items: reviewSnapshot.items,
+        shipping_address: {
+          first_name: String(reviewSnapshot.fullName || '').trim().split(/\s+/)[0] || '',
+          last_name: String(reviewSnapshot.fullName || '').trim().split(/\s+/).slice(1).join(' '),
+          email: reviewSnapshot.email || '',
+          phone: reviewSnapshot.phone || '',
+          address_line_1: reviewSnapshot.address1 || '',
+          address_line_2: reviewSnapshot.address2 || '',
+          city: reviewSnapshot.city || '',
+          postal_code: reviewSnapshot.zipCode || '',
+        },
+        email: reviewSnapshot.email || '',
+      };
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const draft = getCheckoutDraft();
+      renderDraft(draft);
+
+      const continueLink = document.querySelector('a[href="./order-confirmation.html"]');
+      if (!continueLink || continueLink.dataset.reviewSaveBound === 'true') return;
+
+      continueLink.dataset.reviewSaveBound = 'true';
+      continueLink.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        const nextDraft = {
+          ...draft,
+          paymentMethod: getCurrentPaymentMethod(),
+        };
+        const reviewSnapshot = buildReviewSnapshot(nextDraft);
+        const order = buildOrder(reviewSnapshot);
+
+        writeJson(REVIEW_SNAPSHOT_KEY, {
+          ...reviewSnapshot,
+          linkedOrderId: order.id,
+          displayOrderNumber: order.displayOrderNumber,
+        });
+        writeJson(LATEST_ORDER_KEY, order);
+
+        const orders = readJson(ORDERS_KEY, []);
+        orders.unshift(order);
+        writeJson(ORDERS_KEY, orders);
+        localStorage.removeItem(DRAFT_KEY);
+        writeJson(LAST_CHECKOUT_KEY, nextDraft);
+        window.location.href = './order-confirmation.html';
+      });
+    });
+  })();
+</script>
+</body>
 </html>

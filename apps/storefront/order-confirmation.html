@@ -2482,5 +2482,96 @@
 
                 </script> <script src="/js/app.js"></script><script src="/js/header-standardizer.js?v=4"></script></body>
 
-</html>
+<script>
+  (function () {
+    const LATEST_ORDER_KEY = 'appLatestOrder';
+    const REVIEW_SNAPSHOT_KEY = 'appReviewOrderSnapshot';
 
+    function readJson(key, fallback) {
+      try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    function formatPrice(value) {
+      const amount = Math.round(Number(value || 0));
+      return amount.toLocaleString('fr-FR') + ' FCFA';
+    }
+
+    function renderOrder(order) {
+      if (!order) return;
+
+      const snapshot = readJson(REVIEW_SNAPSHOT_KEY, null) || {};
+      const subtotalNode = document.querySelector('[data-order-summary-value="subtotal"]');
+      const shippingNode = document.querySelector('[data-order-summary-value="shipping"]');
+      const promoNode = document.querySelector('[data-order-summary-value="promo-discount"]');
+      const totalNode = document.querySelector('[data-order-summary-value="total"]');
+      const itemsRoot = document.querySelector('[data-confirmation-order-items="true"]');
+
+      const subtotal = Number(order.subtotal ?? snapshot.subtotal ?? 0);
+      const shippingAmount = Number(order.shipping_amount ?? snapshot.shippingAmount ?? 0);
+      const promoDiscount = Number(order.promo_discount ?? snapshot.promoDiscount ?? 0);
+      const total = Number(order.total ?? snapshot.total ?? Math.max(0, subtotal + shippingAmount - promoDiscount));
+      const items = Array.isArray(order.items) && order.items.length ? order.items : (Array.isArray(snapshot.items) ? snapshot.items : []);
+
+      if (subtotalNode) subtotalNode.textContent = formatPrice(subtotal);
+      if (shippingNode) shippingNode.textContent = shippingAmount > 0 ? formatPrice(shippingAmount) : '0 FCFA';
+      if (promoNode) promoNode.textContent = promoDiscount > 0 ? '-' + formatPrice(promoDiscount) : '0 FCFA';
+      if (totalNode) totalNode.textContent = formatPrice(total);
+
+      if (itemsRoot) {
+        itemsRoot.innerHTML = items.map((item) => {
+          const title = item.title || item.name || 'Item';
+          const color = item.color || 'Default';
+          const size = item.size || 'One size';
+          const quantity = Number(item.quantity || 1);
+          const price = Number(item.price || 0);
+          const image = item.image || 'data:,';
+
+          return [
+            '<div class="flex haw2c">',
+            '<div class="relative">',
+            '<img class="y6rh0 cr96u aruvj fy2yn edpyz" src="' + image + '" alt="' + title + '">',
+            '</div>',
+            '<div class="t6ue9 flex flex-col">',
+            '<h4 class="yymkp c4t4j">' + title + '</h4>',
+            '<ul class="j9itz space-y-1">',
+            '<li class="m859b f1ztf">Couleur: ' + color + '</li>',
+            '<li class="m859b f1ztf">Taille: ' + size + '</li>',
+            '</ul>',
+            '<p class="j9itz m859b f1ztf"><span>Qty:</span><span>' + quantity + '</span></p>',
+            '<span class="j9itz yymkp c4t4j">' + formatPrice(price) + '</span>',
+            '</div>',
+            '</div>',
+          ].join('');
+        }).join('');
+      }
+
+      const orderTitle = document.querySelector('h1, h2');
+      if (orderTitle && order.displayOrderNumber) {
+        const titleText = orderTitle.textContent || '';
+        if (/thank you/i.test(titleText) || /merci/i.test(titleText)) {
+          const orderNumberLine = Array.from(document.querySelectorAll('p, span')).find((node) => /order number|numero|num[eé]ro/i.test(node.textContent || ''));
+          if (orderNumberLine) {
+            orderNumberLine.textContent = orderNumberLine.textContent.replace(/#?.*$/, '') + ' ' + order.displayOrderNumber;
+          }
+        }
+      }
+
+      const emailNode = Array.from(document.querySelectorAll('p, span')).find((node) => /confirmation email|confirmation de commande|sent to|envoyée/i.test(node.textContent || ''));
+      if (emailNode && order.email) {
+        emailNode.textContent = emailNode.textContent.replace(/to\s+.*$/i, 'to ' + order.email);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const order = readJson(LATEST_ORDER_KEY, null) || readJson(REVIEW_SNAPSHOT_KEY, null);
+      renderOrder(order);
+    });
+  })();
+</script>
+</body>
+</html>

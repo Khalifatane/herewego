@@ -951,5 +951,119 @@
       });
     });
   </script>
+  <script>
+    (function () {
+      const DRAFT_KEY = 'appCheckoutDraft';
+      const LAST_CHECKOUT_KEY = 'appLastCheckoutDetails';
+
+      function readJson(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : fallback;
+        } catch (error) {
+          return fallback;
+        }
+      }
+
+      function writeJson(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+
+      function getCartItems() {
+        const items = readJson('appCartItems', []);
+        return Array.isArray(items) ? items : [];
+      }
+
+      function getSelectedShippingMethod() {
+        const checked = document.querySelector('input[name="hs-pro-esdo"]:checked');
+        return checked ? checked.id : 'hs-pro-esdo1';
+      }
+
+      function getShippingSummary(methodId) {
+        if (methodId === 'hs-pro-esdo2') return 'Relay point, 1500 XOF';
+        if (methodId === 'hs-pro-esdo3') return 'Customized, Negotiated';
+        return 'Pickup, Free';
+      }
+
+      function getShippingAmount(methodId) {
+        if (methodId === 'hs-pro-esdo2') return 1500;
+        if (methodId === 'hs-pro-esdo3') return 0;
+        return 0;
+      }
+
+      function collectCheckoutDraft() {
+        const email = document.getElementById('hs-pro-shchfem');
+        const fullName = document.getElementById('hs-pro-shchfn');
+        const address1 = document.getElementById('hs-pro-shchfad1');
+        const address2 = document.getElementById('hs-pro-shchfad2');
+        const city = document.getElementById('hs-pro-shchfct');
+        const zipCode = document.getElementById('hs-pro-shchfzc');
+        const phone = document.getElementById('hs-pro-shchfph');
+        const countrySelect = document.querySelector('[data-hs-select] select');
+        const items = getCartItems();
+        const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+        const shippingMethod = getSelectedShippingMethod();
+        const shippingAmount = getShippingAmount(shippingMethod);
+        const total = Math.max(0, subtotal + shippingAmount);
+        const promoCode = document.getElementById('hs-pro-shchsetcpc');
+
+        return {
+          email: email ? email.value.trim() : '',
+          fullName: fullName ? fullName.value.trim() : '',
+          address1: address1 ? address1.value.trim() : '',
+          address2: address2 ? address2.value.trim() : '',
+          city: city ? city.value.trim() : '',
+          zipCode: zipCode ? zipCode.value.trim() : '',
+          phone: phone ? phone.value.trim() : '',
+          country: countrySelect ? countrySelect.options[countrySelect.selectedIndex].textContent.trim() : '',
+          shippingMethod: shippingMethod,
+          shippingMethodLabel: getShippingSummary(shippingMethod),
+          shippingAmount: shippingAmount,
+          promoCode: promoCode ? promoCode.value.trim() : '',
+          items: items,
+          subtotal: subtotal,
+          total: total,
+          currency: 'XOF',
+        };
+      }
+
+      function seedFieldsFromDraft(draft) {
+        if (!draft) return;
+        const fields = {
+          'hs-pro-shchfem': draft.email,
+          'hs-pro-shchfn': draft.fullName,
+          'hs-pro-shchfad1': draft.address1,
+          'hs-pro-shchfad2': draft.address2,
+          'hs-pro-shchfct': draft.city,
+          'hs-pro-shchfzc': draft.zipCode,
+          'hs-pro-shchfph': draft.phone,
+        };
+
+        Object.keys(fields).forEach((id) => {
+          const input = document.getElementById(id);
+          if (input && fields[id]) input.value = fields[id];
+        });
+
+        const shipping = draft.shippingMethod || 'hs-pro-esdo1';
+        const shippingInput = document.getElementById(shipping);
+        if (shippingInput) shippingInput.checked = true;
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        const draft = readJson(DRAFT_KEY, readJson(LAST_CHECKOUT_KEY, null));
+        seedFieldsFromDraft(draft);
+
+        const continueLink = document.querySelector('a[href="./review-pay.html"]');
+        if (!continueLink || continueLink.dataset.checkoutSaveBound === 'true') return;
+
+        continueLink.dataset.checkoutSaveBound = 'true';
+        continueLink.addEventListener('click', function () {
+          const nextDraft = collectCheckoutDraft();
+          writeJson(DRAFT_KEY, nextDraft);
+          writeJson(LAST_CHECKOUT_KEY, nextDraft);
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
