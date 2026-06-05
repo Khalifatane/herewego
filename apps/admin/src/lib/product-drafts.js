@@ -1,4 +1,5 @@
 const STORAGE_KEY = "admin:product-drafts";
+export const PRODUCT_DRAFTS_UPDATE_EVENT = "admin:product-drafts-updated";
 
 function slugify(value) {
   return String(value || "")
@@ -72,6 +73,19 @@ function writeStoredDraftsRaw(drafts) {
   if (!storage) return;
 
   storage.setItem(STORAGE_KEY, JSON.stringify(drafts));
+}
+
+function dispatchDraftsEvent(drafts) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent(PRODUCT_DRAFTS_UPDATE_EVENT, {
+      detail: {
+        drafts: drafts.map((draft) => normalizeStoredDraft(draft)),
+        count: drafts.length,
+      },
+    }),
+  );
 }
 
 function buildDraftKeys(entry) {
@@ -156,34 +170,13 @@ export function upsertStoredProductDraft(input = {}) {
 
   storedDrafts.unshift(nextDraft);
   writeStoredDraftsRaw(storedDrafts);
+  dispatchDraftsEvent(storedDrafts);
   return nextDraft;
 }
 
-export function mergeProductsWithStoredDrafts(products = [], drafts = loadStoredProductDrafts()) {
-  const merged = [...products];
-
-  drafts.forEach((draft) => {
-    const index = merged.findIndex((product) => {
-      return [product?.id, product?.slug, product?.sku]
-        .filter(Boolean)
-        .some((value) => [draft.draftId, draft.id, draft.slug, draft.sku]
-          .filter(Boolean)
-          .includes(String(value)));
-    });
-
-    if (index >= 0) {
-      merged[index] = {
-        ...merged[index],
-        ...draft,
-        runtime: draft.runtime || merged[index].runtime || null,
-      };
-      return;
-    }
-
-    merged.unshift(draft);
-  });
-
-  return merged;
+export function clearStoredProductDrafts() {
+  writeStoredDraftsRaw([]);
+  dispatchDraftsEvent([]);
 }
 
 export function buildProductDraftFromForm(form = {}) {

@@ -6,8 +6,8 @@ import {
 } from "@siggistore/services/admin";
 import {
   buildProductDraftFromForm,
+  clearStoredProductDrafts,
   loadStoredProductDrafts,
-  upsertStoredProductDraft,
 } from "../lib/product-drafts.js";
 
 let activeDraft = null;
@@ -250,15 +250,11 @@ function bindSaveLink() {
         table: PRODUCT_RUNTIME_TABLE,
       });
 
-      const savedDraft = upsertStoredProductDraft({
-        ...draft,
-        runtimeId: runtime?.id || existingRuntime?.id || draft.runtimeId || null,
-        updatedAt: runtime?.updated_at || new Date().toISOString(),
-      });
-      activeDraft = savedDraft;
+      clearStoredProductDrafts();
+      activeDraft = null;
 
       saveLink.textContent = "Enregistre";
-      saveLink.title = `Produit sauvegarde: ${savedDraft.name}`;
+      saveLink.title = `Produit sauvegarde: ${draft.name}`;
       window.HSStaticMethods?.autoInit?.();
     } catch (error) {
       console.error("Failed to save add product draft", error);
