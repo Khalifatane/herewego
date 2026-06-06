@@ -55,12 +55,26 @@ function buildRuntimeLookupKey(product) {
   return [product?.id, product?.slug, product?.sku].filter(Boolean).map(String);
 }
 
+function getProductRouteValue(product) {
+  return product?.slug || product?.id || product?.sku || product?.name || "";
+}
+
 function safeWriteSelectedProductSnapshot(product) {
   try {
     localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
   } catch (error) {
     console.warn("Unable to persist selected product snapshot", error);
   }
+}
+
+function bindSelectedProductBridge(target, product) {
+  if (!target || target.dataset.selectedProductBridgeBound === "true") return;
+
+  target.dataset.selectedProductBridgeBound = "true";
+  const persist = () => safeWriteSelectedProductSnapshot(product);
+
+  target.addEventListener("pointerdown", persist, { passive: true });
+  target.addEventListener("click", persist);
 }
 
 function normalizeLookupValue(value) {
@@ -342,9 +356,7 @@ function hydrateDashboardRow(row, product) {
   const sold = Math.max(0, Number(product?.salesCount ?? 0) || 0);
   const value = sold * Math.max(0, Number(product?.price ?? 0) || 0);
   const productName = String(product?.name || "Produit sans titre").trim();
-  const detailsHref = `./product-details.html?product=${encodeURIComponent(
-    product?.slug || product?.id || "",
-  )}`;
+  const detailsHref = `./product-details.html?product=${encodeURIComponent(getProductRouteValue(product))}`;
   const image = row.querySelector("img");
   const itemLink = row.querySelector('td:nth-child(2) a');
   const itemName = row.querySelector('td:nth-child(2) .yymkp');
@@ -365,9 +377,7 @@ function hydrateDashboardRow(row, product) {
 
   if (itemLink) {
     itemLink.setAttribute("href", detailsHref);
-    itemLink.addEventListener("click", () => {
-      safeWriteSelectedProductSnapshot(product);
-    });
+    bindSelectedProductBridge(itemLink, product);
   }
 
   if (itemName) {

@@ -27,6 +27,32 @@ function buildRuntimeLookupKey(product) {
     .map(String);
 }
 
+function getProductRouteValue(product) {
+  return product?.slug || product?.id || product?.sku || product?.name || "";
+}
+
+function normalizeLookupValue(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function buildProductLookupKeys(product) {
+  return [product?.id, product?.slug, product?.sku, product?.name]
+    .filter(Boolean)
+    .map(normalizeLookupValue);
+}
+
+function findProductIndexByLookupValues(products, lookupValues) {
+  const normalizedLookupValues = Array.isArray(lookupValues)
+    ? lookupValues.map(normalizeLookupValue).filter(Boolean)
+    : [normalizeLookupValue(lookupValues)].filter(Boolean);
+
+  if (!normalizedLookupValues.length) return -1;
+
+  return products.findIndex((product) =>
+    buildProductLookupKeys(product).some((key) => normalizedLookupValues.includes(key)),
+  );
+}
+
 function findProductIndex(products, lookupValue) {
   if (!lookupValue) return -1;
 
@@ -248,14 +274,17 @@ function wireNavigation(button, product) {
 
   button.disabled = false;
   button.addEventListener("click", () => {
-    const target = `./product-details.html?product=${encodeURIComponent(product.slug || product.id)}`;
+    const target = `./product-details.html?product=${encodeURIComponent(getProductRouteValue(product))}`;
     window.location.href = target;
   });
 }
 
 async function initProductDetailsPage() {
   const params = new URLSearchParams(window.location.search);
-  const productKey = params.get("product");
+  const productLookupValues = [params.get("product"), params.get("slug"), params.get("id"), params.get("sku")]
+    .filter(Boolean)
+    .map(normalizeLookupValue);
+  const snapshotProduct = safeReadSelectedProductSnapshot();
 
   const titleNode = document.getElementById("product-details-title");
   const breadcrumbLink = document.getElementById("product-details-breadcrumb-link");
@@ -268,43 +297,63 @@ async function initProductDetailsPage() {
   if (!titleNode || !breadcrumbLink || !prevButton || !nextButton) return;
 
   try {
-    const products = await fetchSanityProducts({ limit: 100 });
-    const runtimeIds = [...new Set(products.flatMap((product) => buildRuntimeLookupKey(product)))];
+    let mergedProducts = [];
+    let currentProduct = snapshotProduct;
+    let currentIndex = -1;
 
-    let runtimeRows = [];
     try {
-      runtimeRows = await fetchProductRuntimeByIds(runtimeIds, {
-        table: PRODUCT_RUNTIME_TABLE,
-      });
-    } catch (runtimeError) {
-      console.warn("Supabase runtime unavailable for product details page", runtimeError);
-    }
+      const products = await fetchSanityProducts({ limit: 100 });
+      const runtimeIds = [...new Set(products.flatMap((product) => buildRuntimeLookupKey(product)))];
 
-    const runtimeMap = new Map();
-    runtimeRows.forEach((runtime) => {
-      [runtime.sanity_product_id, runtime.product_id, runtime.slug, runtime.sku]
-        .filter(Boolean)
-        .forEach((key) => {
-          runtimeMap.set(String(key), runtime);
+      let runtimeRows = [];
+      try {
+        runtimeRows = await fetchProductRuntimeByIds(runtimeIds, {
+          table: PRODUCT_RUNTIME_TABLE,
         });
-    });
+      } catch (runtimeError) {
+        console.warn("Supabase runtime unavailable for product details page", runtimeError);
+      }
 
-    const mergedProducts = products.map((product) => {
-      const runtime = buildRuntimeLookupKey(product)
-        .map((key) => runtimeMap.get(String(key)))
-        .find(Boolean);
-      return mergeProductWithRuntime(product, runtime);
-    });
+      const runtimeMap = new Map();
+      runtimeRows.forEach((runtime) => {
+        [runtime.sanity_product_id, runtime.product_id, runtime.slug, runtime.sku]
+          .filter(Boolean)
+          .forEach((key) => {
+            runtimeMap.set(String(key), runtime);
+          });
+      });
 
-    const matchedIndex = findProductIndex(mergedProducts, productKey);
-    const snapshotProduct = safeReadSelectedProductSnapshot();
-    const currentProduct =
-      matchedIndex >= 0
-        ? mergedProducts[matchedIndex]
-        : snapshotProduct
-          ? snapshotProduct
-          : mergedProducts[0];
-    const currentIndex = matchedIndex >= 0 ? matchedIndex : 0;
+      mergedProducts = products.map((product) => {
+        const runtime = buildRuntimeLookupKey(product)
+          .map((key) => runtimeMap.get(String(key)))
+          .find(Boolean);
+        return mergeProductWithRuntime(product, runtime);
+      });
+
+      const matchedIndex = findProductIndexByLookupValues(mergedProducts, productLookupValues);
+      const snapshotIndex = snapshotProduct
+        ? findProductIndexByLookupValues(mergedProducts, buildProductLookupKeys(snapshotProduct))
+        : -1;
+
+      if (matchedIndex >= 0) {
+        currentProduct = mergedProducts[matchedIndex];
+        currentIndex = matchedIndex;
+      } else if (snapshotIndex >= 0) {
+        currentProduct = mergedProducts[snapshotIndex];
+        currentIndex = snapshotIndex;
+      } else if (snapshotProduct) {
+        currentProduct = snapshotProduct;
+        currentIndex = 0;
+      } else {
+        currentProduct = mergedProducts[0] || null;
+        currentIndex = 0;
+      }
+    } catch (fetchError) {
+      console.warn("Unable to load live product details, falling back to selected snapshot", fetchError);
+      mergedProducts = snapshotProduct ? [snapshotProduct] : [];
+      currentProduct = snapshotProduct || null;
+      currentIndex = 0;
+    }
 
     if (!currentProduct) return;
 
@@ -312,9 +361,7 @@ async function initProductDetailsPage() {
 
     titleNode.textContent = currentProduct.name;
     breadcrumbLink.textContent = currentProduct.name;
-    breadcrumbLink.href = `./product-details.html?product=${encodeURIComponent(
-      currentProduct.slug || currentProduct.id,
-    )}`;
+    breadcrumbLink.href = `./product-details.html?product=${encodeURIComponent(getProductRouteValue(currentProduct))}`;
     document.title = `${currentProduct.name} | Product Details`;
 
     if (availabilityInput) {

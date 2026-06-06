@@ -57,12 +57,26 @@ function buildRuntimeLookupKey(product) {
     .map(String);
 }
 
+function getProductRouteValue(product) {
+  return product?.slug || product?.id || product?.sku || product?.name || "";
+}
+
 function safeWriteSelectedProductSnapshot(product) {
   try {
     localStorage.setItem(SELECTED_PRODUCT_STORAGE_KEY, JSON.stringify(product));
   } catch (error) {
     console.warn("Unable to persist selected product snapshot", error);
   }
+}
+
+function bindSelectedProductBridge(target, product) {
+  if (!target || target.dataset.selectedProductBridgeBound === "true") return;
+
+  target.dataset.selectedProductBridgeBound = "true";
+  const persist = () => safeWriteSelectedProductSnapshot(product);
+
+  target.addEventListener("pointerdown", persist, { passive: true });
+  target.addEventListener("click", persist);
 }
 
 function buildStockBadgeMarkup(stockState) {
@@ -95,9 +109,7 @@ function hydrateProductRow(row, product) {
   const rowKey = String(product.slug || product.id || product.sku || "product")
     .replace(/[^a-zA-Z0-9_-]/g, "-")
     .toLowerCase();
-  const detailsHref = `./product-details.html?product=${encodeURIComponent(
-    product.slug || product.id,
-  )}`;
+  const detailsHref = `./product-details.html?product=${encodeURIComponent(getProductRouteValue(product))}`;
   const image = row.querySelector("img");
   const nameLink = row.querySelector('td:nth-child(2) a');
   const categoryCell = row.querySelector('td:nth-child(3) .yymkp');
@@ -124,9 +136,7 @@ function hydrateProductRow(row, product) {
   if (nameLink) {
     nameLink.textContent = product.name;
     nameLink.setAttribute("href", detailsHref);
-    nameLink.addEventListener("click", () => {
-      safeWriteSelectedProductSnapshot(product);
-    });
+    bindSelectedProductBridge(nameLink, product);
   }
 
   if (categoryCell) {
@@ -161,9 +171,7 @@ function hydrateProductRow(row, product) {
 
   actionLinks.forEach((link) => {
     link.setAttribute("href", detailsHref);
-    link.addEventListener("click", () => {
-      safeWriteSelectedProductSnapshot(product);
-    });
+    bindSelectedProductBridge(link, product);
   });
 
   if (dropdownButton) {
