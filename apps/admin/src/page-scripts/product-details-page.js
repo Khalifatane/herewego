@@ -1,5 +1,6 @@
 import {
   fetchProductRuntimeByIds,
+  fetchProductRuntime,
   mergeProductWithRuntime,
   PRODUCT_RUNTIME_TABLE,
   updateProductRuntimeDisplay,
@@ -50,6 +51,58 @@ function findProductIndexByLookupValues(products, lookupValues) {
 
   return products.findIndex((product) =>
     buildProductLookupKeys(product).some((key) => normalizedLookupValues.includes(key)),
+  );
+}
+
+function buildRuntimeLookupIds(productLookupValues = [], snapshotProduct = null) {
+  const values = new Set();
+
+  (Array.isArray(productLookupValues) ? productLookupValues : [productLookupValues])
+    .filter(Boolean)
+    .forEach((value) => values.add(String(value).trim()));
+
+  if (snapshotProduct) {
+    buildProductLookupKeys(snapshotProduct).forEach((value) => values.add(String(value).trim()));
+  }
+
+  return [...values].filter(Boolean);
+}
+
+function buildRuntimeProductFromRow(runtimeRow, snapshotProduct = null) {
+  if (!runtimeRow) return null;
+
+  const meta = Array.isArray(runtimeRow.channels)
+    ? runtimeRow.channels
+        .map((channel) => String(channel))
+        .find((channel) => channel.startsWith("__display_meta:"))
+    : null;
+
+  let displayMeta = null;
+  if (meta) {
+    try {
+      displayMeta = JSON.parse(decodeURIComponent(meta.slice("__display_meta:".length)));
+    } catch {
+      displayMeta = null;
+    }
+  }
+
+  const runtimeVariants = Array.isArray(runtimeRow.display_variants) ? runtimeRow.display_variants : [];
+  return mergeProductWithRuntime(
+    {
+      id: runtimeRow.sanity_product_id || runtimeRow.product_id || runtimeRow.slug || runtimeRow.sku || snapshotProduct?.id || snapshotProduct?.slug || "product",
+      slug: runtimeRow.slug || snapshotProduct?.slug || runtimeRow.sanity_product_id || runtimeRow.product_id || "product",
+      sku: runtimeRow.sku || snapshotProduct?.sku || "",
+      name: snapshotProduct?.name || snapshotProduct?.title || runtimeRow.display_name || runtimeRow.slug || runtimeRow.sku || "Produit",
+      category: displayMeta?.category || snapshotProduct?.category || "Sans categorie",
+      price: snapshotProduct?.price ?? runtimeRow.price ?? 0,
+      stock: runtimeRow.stock ?? snapshotProduct?.stock ?? 0,
+      isAvailable: runtimeRow.is_available ?? snapshotProduct?.isAvailable ?? true,
+      channels: Array.isArray(runtimeRow.channels) ? runtimeRow.channels : [],
+      displayVariants: runtimeVariants,
+      displayCategory: displayMeta?.category || snapshotProduct?.displayCategory || snapshotProduct?.category || "Sans categorie",
+      runtime: runtimeRow,
+    },
+    runtimeRow,
   );
 }
 
@@ -438,10 +491,36 @@ async function initProductDetailsPage() {
     let mergedProducts = [];
     let currentProduct = snapshotProduct;
     let currentIndex = -1;
+    let runtimeFallbackProduct = null;
+
+    const runtimeLookupIds = buildRuntimeLookupIds(productLookupValues, snapshotProduct);
+    let runtimeFallbackRow = null;
+    try {
+      const runtimeRows = await fetchProductRuntime({
+        table: PRODUCT_RUNTIME_TABLE,
+        ids: runtimeLookupIds,
+        query: runtimeLookupIds[0] || "",
+        limit: 20,
+      });
+
+      runtimeFallbackRow =
+        runtimeRows.find((runtime) =>
+          runtimeLookupIds.some((lookup) =>
+            [runtime.sanity_product_id, runtime.product_id, runtime.slug, runtime.sku]
+              .filter(Boolean)
+              .some((value) => normalizeLookupValue(value) === normalizeLookupValue(lookup)),
+          ),
+        ) || runtimeRows[0] || null;
+    } catch (runtimeError) {
+      console.warn("Supabase runtime direct lookup unavailable for product details page", runtimeError);
+    }
 
     try {
       const products = await fetchSanityProducts({ limit: 100 });
-      const runtimeIds = [...new Set(products.flatMap((product) => buildRuntimeLookupKey(product)))];
+      const runtimeIds = [...new Set([
+        ...runtimeLookupIds,
+        ...products.flatMap((product) => buildRuntimeLookupKey(product)),
+      ])];
 
       let runtimeRows = [];
       try {
@@ -483,13 +562,19 @@ async function initProductDetailsPage() {
         currentProduct = snapshotProduct;
         currentIndex = 0;
       } else {
-        currentProduct = mergedProducts[0] || null;
+        runtimeFallbackProduct = runtimeFallbackRow ? buildRuntimeProductFromRow(runtimeFallbackRow, snapshotProduct) : null;
+        currentProduct = runtimeFallbackProduct || mergedProducts[0] || null;
         currentIndex = 0;
       }
     } catch (fetchError) {
       console.warn("Unable to load live product details, falling back to selected snapshot", fetchError);
-      mergedProducts = snapshotProduct ? [snapshotProduct] : [];
-      currentProduct = snapshotProduct || null;
+      runtimeFallbackProduct = runtimeFallbackRow ? buildRuntimeProductFromRow(runtimeFallbackRow, snapshotProduct) : null;
+      mergedProducts = runtimeFallbackProduct
+        ? [runtimeFallbackProduct]
+        : snapshotProduct
+          ? [snapshotProduct]
+          : [];
+      currentProduct = runtimeFallbackProduct || snapshotProduct || null;
       currentIndex = 0;
     }
 
